@@ -132,7 +132,7 @@ export class PgDialect implements DialectContract {
     const views = await this.getAllViews(schemas)
     if (!views.length) return
 
-    await this.client.rawQuery(`DROP VIEW "${views.join(', ')}" CASCADE;`)
+    await this.client.rawQuery(`DROP VIEW ${views.join(', ')} CASCADE;`)
   }
 
   /**

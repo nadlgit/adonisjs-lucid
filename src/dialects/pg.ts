@@ -43,11 +43,11 @@ export class PgDialect implements DialectContract {
     const tables = await this.client
       .query()
       .from('pg_catalog.pg_tables')
-      .select('tablename as table_name')
+      .select('schemaname AS schema', 'tablename AS table')
       .whereIn('schemaname', schemas)
       .orderBy('tablename', 'asc')
 
-    return tables.map(({ table_name }) => table_name)
+    return tables.map(({ schema, table }) => `"${schema}"."${table}"`)
   }
 
   /**
@@ -57,11 +57,11 @@ export class PgDialect implements DialectContract {
     const views = await this.client
       .query()
       .from('pg_catalog.pg_views')
-      .select('viewname as view_name')
+      .select('schemaname AS schema', 'viewname AS view')
       .whereIn('schemaname', schemas)
       .orderBy('viewname', 'asc')
 
-    return views.map(({ view_name }) => view_name)
+    return views.map(({ schema, view }) => `"${schema}"."${view}"`)
   }
 
   /**
@@ -97,9 +97,10 @@ export class PgDialect implements DialectContract {
    * Truncate pg table with option to cascade and restart identity
    */
   async truncate(table: string, cascade: boolean = false) {
+    const quotedTable = table.startsWith('"') ? table : `"${table}"`
     return cascade
-      ? this.client.rawQuery(`TRUNCATE "${table}" RESTART IDENTITY CASCADE;`)
-      : this.client.rawQuery(`TRUNCATE "${table}";`)
+      ? this.client.rawQuery(`TRUNCATE ${quotedTable} RESTART IDENTITY CASCADE;`)
+      : this.client.rawQuery(`TRUNCATE ${quotedTable};`)
   }
 
   /**
@@ -111,15 +112,17 @@ export class PgDialect implements DialectContract {
     /**
      * Filter out tables that are not allowed to be dropped
      */
+    const extractTableName = (table: string) => table.split('.')[1].replace(/"/g, '')
     tables = tables.filter(
-      (table) => !(this.config.wipe?.ignoreTables || ['spatial_ref_sys']).includes(table)
+      (table) =>
+        !(this.config.wipe?.ignoreTables || ['spatial_ref_sys']).includes(extractTableName(table))
     )
 
     if (!tables.length) {
       return
     }
 
-    await this.client.rawQuery(`DROP TABLE "${tables.join('", "')}" CASCADE;`)
+    await this.client.rawQuery(`DROP TABLE ${tables.join(', ')} CASCADE;`)
   }
 
   /**
@@ -129,7 +132,7 @@ export class PgDialect implements DialectContract {
     const views = await this.getAllViews(schemas)
     if (!views.length) return
 
-    await this.client.rawQuery(`DROP VIEW "${views.join('", "')}" CASCADE;`)
+    await this.client.rawQuery(`DROP VIEW "${views.join(', ')}" CASCADE;`)
   }
 
   /**

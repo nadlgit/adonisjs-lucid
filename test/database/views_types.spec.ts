@@ -39,7 +39,11 @@ test.group('Query client | Views, types and domains', (group) => {
         view.as(connection.client!('follows').select('user_id'))
       })
 
-      const allViews = await client.getAllViews(['public'])
+      let allViews = await client.getAllViews(['public'])
+      if (client.dialect.name === 'postgres') {
+        const extractViewName = (view: string) => view.split('.')[1].replace(/"/g, '')
+        allViews = allViews.map((view) => extractViewName(view))
+      }
       assert.deepEqual(allViews.sort(), ['users_view', 'follows_view'].sort())
 
       await client.dropAllViews()
@@ -62,6 +66,10 @@ test.group('Query client | Views, types and domains', (group) => {
       })
 
       let allViews = await client.getAllViews(['public'])
+      if (client.dialect.name === 'postgres') {
+        const extractViewName = (view: string) => view.split('.')[1].replace(/"/g, '')
+        allViews = allViews.map((view) => extractViewName(view))
+      }
       assert.deepEqual(allViews.sort(), ['users_view', 'follows_view'].sort())
 
       await client.dropAllViews()

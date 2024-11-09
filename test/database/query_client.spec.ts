@@ -444,7 +444,11 @@ test.group('Query client | get tables', (group) => {
     connection.connect()
 
     const client = new QueryClient('dual', connection, createEmitter())
-    const tables = await client.getAllTables(['public'])
+    let tables = await client.getAllTables(['public'])
+    if (client.dialect.name === 'postgres') {
+      const extractTableName = (table: string) => table.split('.')[1].replace(/"/g, '')
+      tables = tables.map((table) => extractTableName(table))
+    }
     if (process.env.DB !== 'mysql_legacy') {
       assert.deepEqual(tables, [
         'comments',
